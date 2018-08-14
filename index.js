@@ -67,10 +67,10 @@ export default class Measure extends Component {
   componentWillUnmount() {
     const { emitter, router } = this;
 
-    router.events.on('routeChangeStart', this.start);
+    router.events.off('routeChangeStart', this.start);
     emitter.off('before-reactdom-render', this.before);
     emitter.off('after-reactdom-render', this.after);
-    router.events.on('routeChangeComplete', this.complete);
+    router.events.off('routeChangeComplete', this.complete);
 
     this.emitter = this.router = null;
   }
