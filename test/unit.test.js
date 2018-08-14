@@ -1,12 +1,13 @@
+import { shallow, mount } from 'enzyme';
 import { it, describe } from 'mocha';
 import EventEmitter from 'events';
-import { shallow } from 'enzyme';
 import RUM from '../index.js';
 import assume from 'assume';
 import React from 'react';
 
 describe('RUM Component', function () {
   const events = new EventEmitter();
+  let result;
   let rum;
 
   //
@@ -19,6 +20,13 @@ describe('RUM Component', function () {
       events: new EventEmitter()
     }
   };
+
+  //
+  // The Next event mitter isn't really an event emitter. So we have to confirm
+  // their weird API.
+  //
+  global.next.emitter.off = global.next.emitter.removeListener;
+  global.next.router.events.off = global.next.emitter.removeListener;
 
   /**
    * Simple proxy function, it will just emit the callback as events
@@ -80,12 +88,18 @@ describe('RUM Component', function () {
     }, 5);
   }
 
-  before(function () {
-    const enzyme = shallow(<RUM navigated={ navigated } />);
-    rum = enzyme.instance();
-  });
+  function on() {
+    result = mount(<RUM navigated={ navigated } />);
+    rum = result.instance();
+  }
+
+  function off() {
+    result.unmount();
+  }
 
   it('adds eventlisteners to the next internals', function () {
+    on();
+
     const emitter = global.next.emitter.eventNames();
     const router = global.next.router.events.eventNames();
 
@@ -98,9 +112,39 @@ describe('RUM Component', function () {
     assume(global.next.emitter.listeners('after-reactdom-render')[0]).equals(rum.after);
     assume(global.next.router.events.listeners('routeChangeStart')[0]).equals(rum.start);
     assume(global.next.router.events.listeners('routeChangeComplete')[0]).equals(rum.complete);
+
+    off();
+  });
+
+  it('removes the listeners on unmount', function () {
+    assume(global.next.emitter.listeners('before-reactdom-render')).is.length(0);
+    assume(global.next.emitter.listeners('before-reactdom-render')).is.length(0);
+    assume(global.next.emitter.listeners('after-reactdom-render')).is.length(0);
+    assume(global.next.router.events.listeners('routeChangeStart')).is.length(0);
+    assume(global.next.router.events.listeners('routeChangeComplete')).is.length(0);
+
+    const enzyme = mount(<RUM navigated={ navigated } />);
+    const instance = enzyme.instance();
+
+    assume(global.next.emitter.listeners('before-reactdom-render')).is.length(1);
+    assume(global.next.emitter.listeners('before-reactdom-render')).is.length(1);
+    assume(global.next.emitter.listeners('after-reactdom-render')).is.length(1);
+    assume(global.next.router.events.listeners('routeChangeStart')).is.length(1);
+    assume(global.next.router.events.listeners('routeChangeComplete')).is.length(1);
+
+    enzyme.unmount();
+
+    assume(global.next.emitter.listeners('before-reactdom-render')).is.length(0);
+    assume(global.next.emitter.listeners('before-reactdom-render')).is.length(0);
+    assume(global.next.emitter.listeners('after-reactdom-render')).is.length(0);
+    assume(global.next.router.events.listeners('routeChangeStart')).is.length(0);
+    assume(global.next.router.events.listeners('routeChangeComplete')).is.length(0);
   });
 
   describe('Metric storage', function () {
+    beforeEach(on);
+    afterEach(off);
+
     it('it has a `timings` object', function () {
       assume(rum.timings).is.a('object');
       assume(rum.timings).is.length(0);
@@ -135,6 +179,8 @@ describe('RUM Component', function () {
 
     describe('#reset', function () {
       it('resets the object', function () {
+        rum.set('example');
+        
         assume(rum.timings).is.above(0);
         rum.reset();
 
@@ -168,6 +214,9 @@ describe('RUM Component', function () {
   });
 
   describe('#navigated', function () {
+    beforeEach(on);
+    afterEach(off);
+
     it('calls the callback when the page is navigated', function (next) {
       events.once('navigated', function (url, payload) {
         assume(url).equals('/callback-test');
@@ -209,6 +258,8 @@ describe('RUM Component', function () {
   });
 
   it('does not reset timing data on renderError', function (next) {
+    on();
+
     events.once('navigated', function (url, payload) {
       assume(url).equals('/render-error');
       assume(payload).is.a('object');
@@ -217,6 +268,7 @@ describe('RUM Component', function () {
       assume(payload.domInteractive).is.above(payload.domLoading + 1);
       assume(payload.domContentLoaded).is.above(payload.domLoading + 1);
 
+      off();
       next();
     });
 

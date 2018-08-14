@@ -21,17 +21,19 @@
     "eslint-plugin-json": "^1.2.0",
     "eslint-plugin-mocha": "^5.1.0",
     "eslint-plugin-react": "^7.10.0",
+    "jsdom": "^11.12.0",
     "mocha": "^5.2.0",
     "prop-types": "^15.6.2",
     "react": "^16.4.1",
-    "react-dom": "^16.4.1"
+    "react-dom": "^16.4.1",
+    "setup-env": "^1.1.0"
   },
   "peerDependencies": {
     "react": "x.x.x",
     "prop-types": "x.x.x"
   },
   "scripts": {
-    "test": "mocha --require test/setup test/*.test.js",
+    "test": "mocha --require setup-env test/*.test.js",
     "lint": "eslint index.js test/*.js",
     "build": "babel index.js -d ./lib",
     "prepublishOnly": "npm run build"
