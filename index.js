@@ -1,3 +1,4 @@
+import purrformance, { timeOrigin, entries, find } from './purrformance';
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 
@@ -11,16 +12,28 @@ export default class Measure extends Component {
   constructor() {
     super(...arguments);
 
-    this.emitter = null;  // Reference to next.emitter.
-    this.router = null;   // Reference to next.router.
-    this.timings = {};    // Store timing data.
+    this.timeOrigin = timeOrigin();   // Start of the original navigation.
+    this.emitter = null;              // Reference to next.emitter.
+    this.router = null;               // Reference to next.router.
+    this.timings = {};                // Store timing data.
+    this.timer = null;                // Reference to a timer.
 
     //
-    // Pre-bind all the methods that are passed into EventEmitters.
+    // Pre-bind all the methods that are passed around.
     //
-    ['before', 'after', 'start', 'complete'].forEach(
+    ['before', 'after', 'start', 'complete', 'payload', 'flush'].forEach(
       (name) => (this[name] = this[name].bind(this))
     );
+
+    //
+    // Check if we need to increase the timing buffer, for most browsers there
+    // is already a decent size of 150~ set as buffer but for some more extreme
+    // cases you might want to track more.
+    //
+    const size = this.props.setResourceTimingBufferSize;
+    if (typeof size === 'number') {
+      purrformance('setResourceTimingBufferSize', size);
+    }
   }
 
   /**
@@ -54,6 +67,10 @@ export default class Measure extends Component {
     emitter.on('after-reactdom-render', this.after);
     router.events.on('routeChangeComplete', this.complete);
 
+    if (this.props.delay && global.addEventListener) {
+      global.addEventListener('beforeunload', this.flush);
+    }
+
     this.emitter = emitter;
     this.router = router;
   }
@@ -65,12 +82,22 @@ export default class Measure extends Component {
    * @private
    */
   componentWillUnmount() {
-    const { emitter, router } = this;
+    const { emitter, router, props } = this;
+
+    //
+    // Before we completely destroy our references, check if we have a current
+    // buffer that should be flushed.
+    //
+    this.flush();
 
     router.events.off('routeChangeStart', this.start);
     emitter.off('before-reactdom-render', this.before);
     emitter.off('after-reactdom-render', this.after);
     router.events.off('routeChangeComplete', this.complete);
+
+    if (props.delay && global.removeEventListener) {
+      global.removeEventListener('beforeunload', this.flush);
+    }
 
     this.emitter = this.router = null;
   }
@@ -101,11 +128,25 @@ export default class Measure extends Component {
   }
 
   /**
+   * Forcefully flush any gathered metrics that we've gathered. Even if we
+   * are asked to delay the gathering. This will be done incase of unloading
+   * of the page, so metrics can still be send if needed.
+   *
+   * @private
+   */
+  flush() {
+    if (!this.timer) return this.reset();
+
+    this.payload();
+  }
+
+  /**
    * Reset out `timings` tracking object to nothing.
    *
    * @public
    */
   reset() {
+    clearTimeout(this.timer);
     this.timings = {};
   }
 
@@ -162,6 +203,27 @@ export default class Measure extends Component {
    * @private
    */
   start(url) {
+    //
+    // Check if we already have data queued, if that is the case we want to
+    // make sure that we flush it, and reset our metrics.
+    //
+    this.flush();
+
+    //
+    // Clearning the resourceTimings does a couple of useful things for us:
+    //
+    // 1. It ensures that we do not overflow our resource buffer. Browsers have
+    //    a fixed limit of the amount of resources they can track. By clearning
+    //    it on the start we reduce free up memory, and allow all requests that
+    //    are made during the navigation phase being captured.
+    // 2. We have to track and check less performance entries once we are done
+    //    so we can safely assume that the first request that is in the entries
+    //    will be the start of our request.
+    //
+    if (this.props.clearResourceTimings) {
+      purrformance('clearResourceTimings');
+    }
+
     this.set('navigationStart', { url });
   }
 
@@ -172,8 +234,59 @@ export default class Measure extends Component {
    * @private
    */
   complete(url) {
+    const delay = this.props.delay;
+
     this.set('loadEventEnd', { url });
-    this.payload();
+
+    //
+    // The performance ResourceAPI only contains files that are fully loaded,
+    // items that are in flight are not included. So when a page loads images
+    // after the page is rendered, we want to capture those as well as last
+    //
+    if (delay) {
+      clearTimeout(this.timer);
+      this.timer = setTimeout(this.payload, delay);
+    } else {
+      this.payload();
+    }
+  }
+
+  /**
+   * Grab all ResourceAPI entries and see if we can extract relevant data
+   * from it so make the timing information more accurate.
+   *
+   * @param {Object} range Start and end time in which the requests could start.
+   * @param {Object} rum The RUM timing object that we can improve.
+   * @param {Array} resources The items that are loaded during the navigation.
+   * @public
+   */
+  resourceTiming(range, rum) {
+    const resources = entries(range);
+    const page = find(resources, /\/_next\/-\/page\/(.*)\.js$/g);
+
+    //
+    // We can use the request that fetches the JavaScript bundle that contains
+    // the page component as starting/end time of the request. It's still
+    // missing the time it took to fetch `getInitialProps` on the component,
+    // but still an improvement over the normal metrics
+    //
+    if (page) {
+      if (page.responseStart) rum.responseStart = page.responseStart;
+      if (page.responseEnd) rum.responseEnd = page.responseEnd;
+    }
+
+    //
+    // The `loadEventStart` should be the same as the `domComplete` time as
+    // that is when the resources can start with loading. To more accurately
+    // estimate the `loadEventEnd` we can see it the last resource that is
+    // loaded on the page end later our basic rum timing and use that instead.
+    //
+    const last = resources[resources.length - 1];
+    if (last && last.responseEnd > rum.loadEventEnd) {
+      rum.loadEventEnd = last.responseEnd;
+    }
+
+    return resources;
   }
 
   /**
@@ -187,6 +300,8 @@ export default class Measure extends Component {
     const unmount = this.get('domLoading');
     const end = this.get('loadEventEnd');
     const rum = {};
+
+    if (!start || !end) return this.reset();
 
     //
     // Start of the route loading.
@@ -204,22 +319,25 @@ export default class Measure extends Component {
     ].forEach(name => (rum[name] = start.now));
 
     //
-    // Components and data are fetched
+    // Components and data are fetched.
     //
     rum.domLoading = unmount.now;
 
     [
       'domInteractive',       // Unable to measure, SPA's are always interactive
       'domContentLoaded',     // Once the React app is rendered, it is loaded
-      'domComplete'           // and also complete, so use the same timing.
+      'domComplete',          // and also complete, so use the same timing.
+      'loadEventStart'        // loadEventStart should be the same as domComplete
     ].forEach(name => (rum[name] = rendered.now));
 
-    [
-      'loadEventStart',       // Load events don't exist, use the routeChangeComplete
-      'loadEventEnd'          // timing for both.
-    ].forEach(name => (rum[name] = end.now));
+    rum.loadEventEnd = end.now;
 
-    this.props.navigated(this.router.asPath, rum);
+    //
+    // Check if we can use the ResourceAPI to improvement some our data.
+    //
+    const entries = this.resourceTiming({ start: start.now, end: end.now }, rum);
+    this.props.navigated(this.router.asPath, rum, entries);
+
     this.reset();
   }
 
@@ -236,12 +354,28 @@ export default class Measure extends Component {
 }
 
 /**
+ * Default props.
+ *
+ * @type {Object}
+ * @private
+ */
+Measure.defaultProps = {
+  clearResourceTimings: true,
+  unload: true,
+  delay: 2000
+};
+
+/**
  * Ensure that we've received the correct props.
  *
  * @type {Object}
  * @private
  */
 Measure.propTypes = {
+  setResourceTimingBufferSize: PropTypes.number,
   navigated: PropTypes.func.isRequired,
-  children: PropTypes.node
+  clearResourceTimings: PropTypes.bool,
+  children: PropTypes.node,
+  delay: PropTypes.number,
+  unload: PropTypes.bool
 };
