@@ -286,8 +286,15 @@ describe('RUM Component', function () {
       assume(name).equals('beforeunload');
       assume(fn.toString()).equals(rum.flush.toString());
 
-      off();
-      next();
+      //
+      // addEventListener is called during will mount, so we don't want to
+      // instantly unmount the node, but give react some time to complete the
+      // mount process.
+      //
+      setTimeout(function () {
+        off();
+        next();
+      }, 0);
     };
 
     on();
