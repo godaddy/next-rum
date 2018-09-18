@@ -1,12 +1,14 @@
 import { shallow, mount } from 'enzyme';
 import { it, describe } from 'mocha';
 import EventEmitter from 'events';
+import polyfill from './polyfill';
 import RUM from '../index.js';
 import assume from 'assume';
 import React from 'react';
 
 describe('RUM Component', function () {
   const events = new EventEmitter();
+  const timers = {};
   let result;
   let rum;
 
@@ -57,13 +59,13 @@ describe('RUM Component', function () {
      * @private
      */
     function done() {
-      setTimeout(function () {
+      timers.second = setTimeout(function () {
         router.asPath = path;
         router.events.emit('routeChangeComplete', path);
       }, 5);
     }
 
-    setTimeout(function () {
+    timers.first = setTimeout(function () {
       const args = {
         Component: {},
         ErrorComponent: {},
@@ -89,12 +91,16 @@ describe('RUM Component', function () {
   }
 
   function on() {
-    result = mount(<RUM navigated={ navigated } />);
+    result = mount(<RUM navigated={ navigated } delay={ 100 } />);
     rum = result.instance();
   }
 
   function off() {
     result.unmount();
+
+    Object.keys(timers).forEach((key) => {
+      clearTimeout(timers[key]);
+    });
   }
 
   it('adds eventlisteners to the next internals', function () {
@@ -180,7 +186,7 @@ describe('RUM Component', function () {
     describe('#reset', function () {
       it('resets the object', function () {
         rum.set('example');
-        
+
         assume(rum.timings).is.above(0);
         rum.reset();
 
@@ -218,19 +224,19 @@ describe('RUM Component', function () {
     afterEach(off);
 
     it('calls the callback when the page is navigated', function (next) {
+      emulate('/callback-test');
       events.once('navigated', function (url, payload) {
         assume(url).equals('/callback-test');
         assume(payload).is.a('object');
 
         next();
       });
-
-      emulate('/callback-test');
     });
 
     it('generates timing information', function (next) {
       const start = Date.now();
 
+      emulate('/timing-data');
       events.once('navigated', function (url, payload) {
         const end = Date.now();
 
@@ -252,8 +258,6 @@ describe('RUM Component', function () {
 
         next();
       });
-
-      emulate('/timing-data');
     });
   });
 
@@ -273,5 +277,63 @@ describe('RUM Component', function () {
     });
 
     emulate('/render-error', new Error('Shits on fire yo'));
+  });
+
+  it('registers an `beforeunload` listener', function (next) {
+    global.addEventListener = function (name, fn) {
+      delete global.addEventListener;
+
+      assume(name).equals('beforeunload');
+      assume(fn.toString()).equals(rum.flush.toString());
+
+      //
+      // addEventListener is called during will mount, so we don't want to
+      // instantly unmount the node, but give react some time to complete the
+      // mount process.
+      //
+      setTimeout(function () {
+        off();
+        next();
+      }, 0);
+    };
+
+    on();
+  });
+
+  it('removes an `beforeunload` listener', function (next) {
+    global.removeEventListener = function (name, fn) {
+      delete global.removeEventListener;
+
+      assume(name).equals('beforeunload');
+      assume(fn.toString()).equals(rum.flush.toString());
+
+      next();
+    };
+
+    on();
+    off();
+  });
+
+  describe('performance', function () {
+    beforeEach(polyfill);
+
+    it('sets the setResourceTimingBufferSize', function (next) {
+      global.performance.emitter.once('setResourceTimingBufferSize', (value) => {
+        assume(value).equals(300);
+        next();
+      });
+
+      shallow(<RUM navigated={ navigated } setResourceTimingBufferSize={ 300 } />);
+    });
+
+    it('clears the resource timing buffer', function (next) {
+      global.performance.emitter.once('clearResourceTimings', () => {
+        off();
+        next();
+      });
+
+      on();
+      emulate('/timing-data');
+    });
   });
 });

@@ -104,6 +104,46 @@ export default function Example() => {
 }
 ```
 
+### clearResourceTimings
+
+This will clear all the resource timing information that the browser has stored
+right before we are about to navigate to a new page. This ensures that there's
+enough room in the resource buffer, as well as makes it easier to find the start
+and end resources that your page might have loaded.
+
+**This is on by default**, but you can turn it off if needed, it not, no touchy.
+
+```js
+<RUM navigated={ navigated } clearResourceTimings={ false } />
+```
+
+### setResourceTimingBufferSize
+
+Allows you to bump the resource limit of the `performance` browser API through
+the component. In most, if not all cases you do **not** need to bump this value
+as it default to ~150 resources, which is more than enough for most applications.
+
+```js
+<RUM navigated={ navigated } setResourceTimingBufferSize={ 200 } />
+```
+
+### delay
+
+The `next-rum` component leverages the ResourceTiming API to more accurately
+generate the correct loading times of your component so it can include images
+and other assets that are loaded when the component is rendered. Unfortunately
+the ResourceTiming API only contains item that are fully loaded. As this component
+has no idea what you will be loading in the component, we will wait an x amount
+of milliseconds before we gather the data, and call the `navigated` callback.
+This gives assets some time to complete loading, so they can be included in the
+metrics.
+
+**This is on by default, with a value of 2000**
+
+```js
+<RUM navigated={ navigated } delay={ 5000 } />
+```
+
 ## Navigation Timing
 
 The following timing information is gathered:
