@@ -301,7 +301,7 @@ export default class Measure extends Component {
     const end = this.get('loadEventEnd');
     const rum = {};
 
-    if (!start || !end || !unmount) return this.reset();
+    if (!start || !end || !unmount || !rendered) return this.reset();
 
     //
     // Start of the route loading.

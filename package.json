@@ -1,6 +1,6 @@
 {
   "name": "next-rum",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "RUM Component for Next.js",
   "main": "./lib",
   "browser": "./lib",
