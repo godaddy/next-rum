@@ -58,13 +58,13 @@ export default class Measure extends Component {
     // 4. Browser `window.history` is updated.
     // 5. Router properties such as `asPath` are updated.
     // 6. Notify all router subscription of the change which triggers `next.render`
-    //   - `before-reactdom-render` next event is emitted.
-    //   - `after-reactdom-render` next event is emitted.
+    //   - `Next.js-route-change-to-render` next event is emitted.
+    //   - `Next.js-render` next event is emitted.
     // 7. `routeChangeComplete` router event is emitted.
     //
     router.events.on('routeChangeStart', this.start);
-    emitter.on('before-reactdom-render', this.before);
-    emitter.on('after-reactdom-render', this.after);
+    emitter.on('Next.js-route-change-to-render', this.before);
+    emitter.on('Next.js-render', this.after);
     router.events.on('routeChangeComplete', this.complete);
 
     if (this.props.delay && global.addEventListener) {
@@ -91,8 +91,8 @@ export default class Measure extends Component {
     this.flush();
 
     router.events.off('routeChangeStart', this.start);
-    emitter.off('before-reactdom-render', this.before);
-    emitter.off('after-reactdom-render', this.after);
+    emitter.off('Next.js-route-change-to-render', this.before);
+    emitter.off('Next.js-render', this.after);
     router.events.off('routeChangeComplete', this.complete);
 
     if (props.delay && global.removeEventListener) {
@@ -133,6 +133,7 @@ export default class Measure extends Component {
    * of the page, so metrics can still be send if needed.
    *
    * @private
+   * @returns {undefined}
    */
   flush() {
     if (!this.timer) return this.reset();
@@ -151,7 +152,7 @@ export default class Measure extends Component {
   }
 
   /**
-   * Responds to the `before-reactdom-render` call as DOM loading as this call
+   * Responds to the `Next.js-route-change-to-render` call as DOM loading as this call
    * will unmount any previous components, clearing up the DOM, ready for
    * rendering.
    *
@@ -169,7 +170,7 @@ export default class Measure extends Component {
     // - ErrorBoundry triggers RenderError
     // - Sets ErrorComponent as Component
     // - Calls render again, here we are with appProps.err set and another
-    //   `before-reactdom-render` attempt.
+    //   `Next.js-route-change-to-render` attempt.
     //
     // So we don't want to override an existing `domLoading` event that
     // we already set, because then we will have the time of when the error
@@ -181,7 +182,7 @@ export default class Measure extends Component {
   }
 
   /**
-   * Responds to the `after-reactdom-render` call, the component has been
+   * Responds to the `Next.js-render` call, the component has been
    * mounted in the DOM.
    *
    * @private
@@ -259,6 +260,7 @@ export default class Measure extends Component {
    * @param {Object} rum The RUM timing object that we can improve.
    * @param {Array} resources The items that are loaded during the navigation.
    * @public
+   * @returns {Object} resources
    */
   resourceTiming(range, rum) {
     const resources = entries(range);
@@ -290,9 +292,10 @@ export default class Measure extends Component {
   }
 
   /**
-   * Create the payload that is send to the callback.
+   * Create the payload that is sent to the callback.
    *
    * @private
+   * @returns {undefined}
    */
   payload() {
     const rendered = this.get('domContentLoaded');
@@ -333,7 +336,7 @@ export default class Measure extends Component {
     rum.loadEventEnd = end.now;
 
     //
-    // Check if we can use the ResourceAPI to improvement some our data.
+    // Check if we can use the ResourceAPI to improve some our data.
     //
     const entries = this.resourceTiming({ start: start.now, end: end.now }, rum);
     this.props.navigated(this.router.asPath, rum, entries);

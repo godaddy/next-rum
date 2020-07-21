@@ -2,7 +2,7 @@
 
 The `next-rum` component extracts RUM data when Next.js router based navigation
 is taking place in your application. This ensures that all previews and load
-times are correctly tracked when the `/pages` are used dynamically loaded by
+times are correctly tracked when the `/pages` are dynamically loaded by
 `next` instead of a full server refresh / reload.
 
 ## Installation
@@ -66,7 +66,7 @@ The `<RUM>` component accepts the following properties:
 
 ### navigated
 
-The component is written to be library agnostic as possible, so we expose a
+The component is written to be as library agnostic as possible, so we expose a
 completion callback for when the page is navigated that will receive all
 relevant timing information. You can use this callback to transfer RUM
 information to the backend / service of your choosing.
@@ -159,8 +159,8 @@ The following timing information is gathered:
   requestStart: <epoch>,
   responseStart: <epoch>,
   responseEnd: <epoch>,
-  domLoading: <epoch>,        // before-reactdom-render
-  domInteractive: <epoch>,    // after-reactdom-render
+  domLoading: <epoch>,        // Next.js-route-change-to-render
+  domInteractive: <epoch>,    // Next.js-render
   domContentLoaded: <epoch>,
   domComplete: <epoch>,
   loadEventStart: <epoch>,    // `routeChangeComplete`
