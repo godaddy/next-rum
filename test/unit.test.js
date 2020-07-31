@@ -1,4 +1,3 @@
-
 import { shallow, mount } from 'enzyme';
 import { it, describe } from 'mocha';
 import EventEmitter from 'events';
@@ -77,12 +76,12 @@ describe('RUM Component', function () {
         }
       };
 
-      emitter.emit('Next.js-route-change-to-render', args);
-      emitter.emit('Next.js-render', args);
+      emitter.emit('before-reactdom-render', args);
+      emitter.emit('after-reactdom-render', args);
 
       if (err) return setTimeout(function () {
-        emitter.emit('Next.js-route-change-to-render', { err, ...args });
-        emitter.emit('Next.js-render', { err, ...args });
+        emitter.emit('before-reactdom-render', { err, ...args });
+        emitter.emit('after-reactdom-render', { err, ...args });
 
         done();
       }, 10);
@@ -110,13 +109,13 @@ describe('RUM Component', function () {
     const emitter = global.next.emitter.eventNames();
     const router = global.next.router.events.eventNames();
 
-    assume(emitter).includes('Next.js-route-change-to-render');
-    assume(emitter).includes('Next.js-render');
+    assume(emitter).includes('before-reactdom-render');
+    assume(emitter).includes('after-reactdom-render');
     assume(router).includes('routeChangeStart');
     assume(router).includes('routeChangeComplete');
 
-    assume(global.next.emitter.listeners('Next.js-route-change-to-render')[0]).equals(rum.before);
-    assume(global.next.emitter.listeners('Next.js-render')[0]).equals(rum.after);
+    assume(global.next.emitter.listeners('before-reactdom-render')[0]).equals(rum.before);
+    assume(global.next.emitter.listeners('after-reactdom-render')[0]).equals(rum.after);
     assume(global.next.router.events.listeners('routeChangeStart')[0]).equals(rum.start);
     assume(global.next.router.events.listeners('routeChangeComplete')[0]).equals(rum.complete);
 
@@ -124,26 +123,26 @@ describe('RUM Component', function () {
   });
 
   it('removes the listeners on unmount', function () {
-    assume(global.next.emitter.listeners('Next.js-route-change-to-render')).is.length(0);
-    assume(global.next.emitter.listeners('Next.js-route-change-to-render')).is.length(0);
-    assume(global.next.emitter.listeners('Next.js-render')).is.length(0);
+    assume(global.next.emitter.listeners('before-reactdom-render')).is.length(0);
+    assume(global.next.emitter.listeners('before-reactdom-render')).is.length(0);
+    assume(global.next.emitter.listeners('after-reactdom-render')).is.length(0);
     assume(global.next.router.events.listeners('routeChangeStart')).is.length(0);
     assume(global.next.router.events.listeners('routeChangeComplete')).is.length(0);
 
     const enzyme = mount(<RUM navigated={ navigated } />);
-    // const instance = enzyme.instance();
+    const instance = enzyme.instance();
 
-    assume(global.next.emitter.listeners('Next.js-route-change-to-render')).is.length(1);
-    assume(global.next.emitter.listeners('Next.js-route-change-to-render')).is.length(1);
-    assume(global.next.emitter.listeners('Next.js-render')).is.length(1);
+    assume(global.next.emitter.listeners('before-reactdom-render')).is.length(1);
+    assume(global.next.emitter.listeners('before-reactdom-render')).is.length(1);
+    assume(global.next.emitter.listeners('after-reactdom-render')).is.length(1);
     assume(global.next.router.events.listeners('routeChangeStart')).is.length(1);
     assume(global.next.router.events.listeners('routeChangeComplete')).is.length(1);
 
     enzyme.unmount();
 
-    assume(global.next.emitter.listeners('Next.js-route-change-to-render')).is.length(0);
-    assume(global.next.emitter.listeners('Next.js-route-change-to-render')).is.length(0);
-    assume(global.next.emitter.listeners('Next.js-render')).is.length(0);
+    assume(global.next.emitter.listeners('before-reactdom-render')).is.length(0);
+    assume(global.next.emitter.listeners('before-reactdom-render')).is.length(0);
+    assume(global.next.emitter.listeners('after-reactdom-render')).is.length(0);
     assume(global.next.router.events.listeners('routeChangeStart')).is.length(0);
     assume(global.next.router.events.listeners('routeChangeComplete')).is.length(0);
   });
