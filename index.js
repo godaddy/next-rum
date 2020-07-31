@@ -294,7 +294,10 @@ export default class Measure extends Component {
    *
    * @private
    */
+  // eslint-disable-next-line max-statements
   payload() {
+    const routeChangeToRenderMetrics = JSON.parse(sessionStorage.getItem('Next.js-route-change-to-render'));
+
     const rendered = this.get('domContentLoaded');
     const start = this.get('navigationStart');
     const unmount = this.get('domLoading');
@@ -321,7 +324,8 @@ export default class Measure extends Component {
     //
     // Components and data are fetched.
     //
-    rum.domLoading = unmount.now;
+    rum.navigationStart = routeChangeToRenderMetrics.navigationStart || rum.navigationStart;
+    rum.domLoading = unmount.now || null;
 
     [
       'domInteractive',       // Unable to measure, SPA's are always interactive
@@ -330,7 +334,8 @@ export default class Measure extends Component {
       'loadEventStart'        // loadEventStart should be the same as domComplete
     ].forEach(name => (rum[name] = rendered.now));
 
-    rum.loadEventEnd = end.now;
+    rum.loadEventStart = routeChangeToRenderMetrics.loadEventStart || rum.loadEventStart;
+    rum.loadEventEnd = end.now || routeChangeToRenderMetrics.loadEventEnd;
 
     //
     // Check if we can use the ResourceAPI to improvement some our data.
