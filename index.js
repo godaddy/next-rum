@@ -295,7 +295,7 @@ export default class Measure extends Component {
    * @private
    */
   payload() {
-    const routeChangeToRenderMetrics = JSON.parse(sessionStorage.getItem('Next.js-route-change-to-render'));
+    const routeChangeToRenderMetrics = Measure.webVitals;
     const rendered = this.get('domContentLoaded') && this.get('domContentLoaded').now ?
       this.get('domContentLoaded').now : routeChangeToRenderMetrics.loadEventStart;
     const start = this.get('navigationStart') && this.get('navigationStart').now ?
@@ -383,4 +383,11 @@ Measure.propTypes = {
   children: PropTypes.node,
   delay: PropTypes.number,
   unload: PropTypes.bool
+};
+
+Measure.webVitals = {
+  navigationStart: null,
+  loadEvenStart: null,
+  loadEventEnd: null,
+  renderDuration: null
 };
