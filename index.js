@@ -294,17 +294,19 @@ export default class Measure extends Component {
    *
    * @private
    */
-  // eslint-disable-next-line max-statements
   payload() {
     const routeChangeToRenderMetrics = JSON.parse(sessionStorage.getItem('Next.js-route-change-to-render'));
-
-    const rendered = this.get('domContentLoaded');
-    const start = this.get('navigationStart');
-    const unmount = this.get('domLoading');
-    const end = this.get('loadEventEnd');
+    const rendered = this.get('domContentLoaded') && this.get('domContentLoaded').now ?
+      this.get('domContentLoaded').now : routeChangeToRenderMetrics.loadEventStart;
+    const start = this.get('navigationStart') && this.get('navigationStart').now ?
+      this.get('navigationStart').now : routeChangeToRenderMetrics.navigationStart;
+    // const unmount = this.get('domLoading');
+    const end = this.get('loadEventEnd') && this.get('loadEventEnd').now ?
+      this.get('loadEventEnd').now : routeChangeToRenderMetrics.loadEventEnd;
     const rum = {};
 
-    if (!start || !end || !unmount || !rendered) return this.reset();
+    // if (!start || !end || !unmount || !rendered) return this.reset();
+    if (!start || !end || !rendered) return this.reset();
 
     //
     // Start of the route loading.
@@ -319,28 +321,26 @@ export default class Measure extends Component {
       'requestStart',         // So we are going to default all of these
       'responseStart',        // to the start timing for now until we
       'responseEnd'           // made a PR to add events for these.
-    ].forEach(name => (rum[name] = start.now));
+    ].forEach(name => (rum[name] = start));
 
     //
     // Components and data are fetched.
     //
-    rum.navigationStart = routeChangeToRenderMetrics.navigationStart || rum.navigationStart;
-    rum.domLoading = unmount.now || null;
+    // rum.domLoading = unmount.now;
 
     [
       'domInteractive',       // Unable to measure, SPA's are always interactive
       'domContentLoaded',     // Once the React app is rendered, it is loaded
       'domComplete',          // and also complete, so use the same timing.
       'loadEventStart'        // loadEventStart should be the same as domComplete
-    ].forEach(name => (rum[name] = rendered.now));
+    ].forEach(name => (rum[name] = rendered));
 
-    rum.loadEventStart = routeChangeToRenderMetrics.loadEventStart || rum.loadEventStart;
-    rum.loadEventEnd = end.now || routeChangeToRenderMetrics.loadEventEnd;
+    rum.loadEventEnd = end;
 
     //
     // Check if we can use the ResourceAPI to improvement some our data.
     //
-    const entries = this.resourceTiming({ start: start.now, end: end.now }, rum);
+    const entries = this.resourceTiming({ start: start, end: end }, rum);
     this.props.navigated(this.router.asPath, rum, entries);
 
     this.reset();
