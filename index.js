@@ -294,7 +294,6 @@ export default class Measure extends Component {
    *
    * @private
    */
-  // eslint-disable-next-line complexity
   payload() {
     const routeChangeToRenderMetrics = Measure.webVitals;
     const rendered = this.get('domContentLoaded') && this.get('domContentLoaded').now ?
