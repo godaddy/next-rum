@@ -294,18 +294,18 @@ export default class Measure extends Component {
    *
    * @private
    */
+  // eslint-disable-next-line complexity
   payload() {
     const routeChangeToRenderMetrics = Measure.webVitals;
     const rendered = this.get('domContentLoaded') && this.get('domContentLoaded').now ?
       this.get('domContentLoaded').now : routeChangeToRenderMetrics.loadEventStart;
     const start = this.get('navigationStart') && this.get('navigationStart').now ?
       this.get('navigationStart').now : routeChangeToRenderMetrics.navigationStart;
-    // const unmount = this.get('domLoading');
+    const unmount = this.get('domLoading');
     const end = this.get('loadEventEnd') && this.get('loadEventEnd').now ?
       this.get('loadEventEnd').now : routeChangeToRenderMetrics.loadEventEnd;
     const rum = {};
 
-    // if (!start || !end || !unmount || !rendered) return this.reset();
     if (!start || !end || !rendered) return this.reset();
 
     //
@@ -326,7 +326,7 @@ export default class Measure extends Component {
     //
     // Components and data are fetched.
     //
-    // rum.domLoading = unmount.now;
+    rum.domLoading = unmount && unmount.now ? unmount.now : null;
 
     [
       'domInteractive',       // Unable to measure, SPA's are always interactive
@@ -387,7 +387,7 @@ Measure.propTypes = {
 
 Measure.webVitals = {
   navigationStart: null,
-  loadEvenStart: null,
+  loadEventStart: null,
   loadEventEnd: null,
   renderDuration: null
 };
