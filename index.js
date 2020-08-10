@@ -120,7 +120,7 @@ export default class Measure extends Component {
    * Find a stat for a given name.
    *
    * @param {String} name Name of the metrict we want to read.
-   * @returns {Object|Undefined} The value.
+   * @returns {Object|Undefined} The additional timing info.
    * @public
    */
   get(name) {
@@ -132,6 +132,7 @@ export default class Measure extends Component {
    * are asked to delay the gathering. This will be done incase of unloading
    * of the page, so metrics can still be send if needed.
    *
+   * @returns {undefined} Nothing.
    * @private
    */
   flush() {
@@ -253,11 +254,11 @@ export default class Measure extends Component {
 
   /**
    * Grab all ResourceAPI entries and see if we can extract relevant data
-   * from it so make the timing information more accurate.
+   * from it to make the timing information more accurate.
    *
    * @param {Object} range Start and end time in which the requests could start.
    * @param {Object} rum The RUM timing object that we can improve.
-   * @param {Array} resources The items that are loaded during the navigation.
+   * @returns {Array} resources The items that are loaded during the navigation.
    * @public
    */
   resourceTiming(range, rum) {
@@ -292,18 +293,22 @@ export default class Measure extends Component {
   /**
    * Create the payload that is send to the callback.
    *
+   * @returns {undefined} Nothing
    * @private
    */
+  // eslint-disable-next-line complexity
   payload() {
-    const routeChangeToRenderMetrics = Measure.webVitals;
-    const rendered = this.get('domContentLoaded') && this.get('domContentLoaded').now ?
-      this.get('domContentLoaded').now : routeChangeToRenderMetrics.loadEventStart;
-    const start = this.get('navigationStart') && this.get('navigationStart').now ?
-      this.get('navigationStart').now : routeChangeToRenderMetrics.navigationStart;
-    const unmount = this.get('domLoading');
-    const end = this.get('loadEventEnd') && this.get('loadEventEnd').now ?
-      this.get('loadEventEnd').now : routeChangeToRenderMetrics.loadEventEnd;
-    const rum = {};
+    const domContentLoaded = this.get('domContentLoaded'),
+      navigationStart = this.get('navigationStart'),
+      loadEventEnd = this.get('loadEventEnd'),
+      unmount = this.get('domLoading'),
+      rendered = domContentLoaded && domContentLoaded.now ?
+        domContentLoaded.now : Measure.webVitals.loadEventStart,
+      start = navigationStart && navigationStart.now ?
+        navigationStart.now : Measure.webVitals.navigationStart,
+      end = loadEventEnd && loadEventEnd.now ?
+        loadEventEnd.now : Measure.webVitals.loadEventEnd,
+      rum = {};
 
     if (!start || !end || !rendered) return this.reset();
 
@@ -358,6 +363,19 @@ export default class Measure extends Component {
 }
 
 /**
+ * We need to expose these properties to be updated with performance metrics from Next.js built in reportWebVitals
+ * function.
+ *
+ * @type {Object}
+ */
+Measure.webVitals = {
+  navigationStart: null,
+  loadEventStart: null,
+  loadEventEnd: null,
+  renderDuration: null
+};
+
+/**
  * Default props.
  *
  * @type {Object}
@@ -382,11 +400,4 @@ Measure.propTypes = {
   children: PropTypes.node,
   delay: PropTypes.number,
   unload: PropTypes.bool
-};
-
-Measure.webVitals = {
-  navigationStart: null,
-  loadEventStart: null,
-  loadEventEnd: null,
-  renderDuration: null
 };
