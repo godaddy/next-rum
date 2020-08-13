@@ -19,6 +19,17 @@ export default class Measure extends Component {
     this.timer = null;                // Reference to a timer.
 
     //
+    // We need to expose these properties to be updated with performance metrics from Next.js built in reportWebVitals
+    // function.
+    //
+    this.webVitals = {
+      navigationStart: null,
+      loadEventStart: null,
+      loadEventEnd: null,
+      renderDuration: null
+    };
+
+    //
     // Pre-bind all the methods that are passed around.
     //
     ['before', 'after', 'start', 'complete', 'payload', 'flush'].forEach(
@@ -298,16 +309,10 @@ export default class Measure extends Component {
    */
   // eslint-disable-next-line complexity
   payload() {
-    const domContentLoaded = this.get('domContentLoaded'),
-      navigationStart = this.get('navigationStart'),
-      loadEventEnd = this.get('loadEventEnd'),
-      unmount = this.get('domLoading'),
-      rendered = domContentLoaded && domContentLoaded.now ?
-        domContentLoaded.now : Measure.webVitals.loadEventStart,
-      start = navigationStart && navigationStart.now ?
-        navigationStart.now : Measure.webVitals.navigationStart,
-      end = loadEventEnd && loadEventEnd.now ?
-        loadEventEnd.now : Measure.webVitals.loadEventEnd,
+    const unmount = this.get('domLoading'),
+      rendered = Measure.webVitals.loadEventStart,
+      start = Measure.webVitals.navigationStart,
+      end = Measure.webVitals.loadEventEnd,
       rum = {};
 
     if (!start || !end || !rendered) return this.reset();
@@ -361,19 +366,6 @@ export default class Measure extends Component {
     return this.props.children || null;
   }
 }
-
-/**
- * We need to expose these properties to be updated with performance metrics from Next.js built in reportWebVitals
- * function.
- *
- * @type {Object}
- */
-Measure.webVitals = {
-  navigationStart: null,
-  loadEventStart: null,
-  loadEventEnd: null,
-  renderDuration: null
-};
 
 /**
  * Default props.
