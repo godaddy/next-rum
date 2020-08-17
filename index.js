@@ -1,4 +1,5 @@
 import purrformance, { timeOrigin, entries, find } from './purrformance';
+// eslint-disable-next-line no-unused-vars
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 
@@ -17,17 +18,6 @@ export default class Measure extends Component {
     this.router = null;               // Reference to next.router.
     this.timings = {};                // Store timing data.
     this.timer = null;                // Reference to a timer.
-
-    //
-    // We need to expose these properties to be updated with performance metrics from Next.js built in reportWebVitals
-    // function.
-    //
-    this.webVitals = {
-      navigationStart: null,
-      loadEventStart: null,
-      loadEventEnd: null,
-      renderDuration: null
-    };
 
     //
     // Pre-bind all the methods that are passed around.
@@ -366,6 +356,19 @@ export default class Measure extends Component {
     return this.props.children || null;
   }
 }
+
+/**
+ * We need to expose these properties to be updated with performance metrics from Next.js built in reportWebVitals
+ * function.
+ *
+ * @type {Object}
+ */
+Measure.webVitals = {
+  navigationStart: null,
+  loadEventStart: null,
+  loadEventEnd: null,
+  renderDuration: null
+};
 
 /**
  * Default props.
