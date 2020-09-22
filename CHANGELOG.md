@@ -1,5 +1,9 @@
 # CHANGELOG
 
+### 1.2.0
+
+- Updates to utilize Next.js web vitals properties. ([#9])
+
 ### 1.1.1
 
 - Next.js made a breaking change in `next@9.4.3` where it removed the listeners
@@ -15,3 +19,5 @@
 ### 1.0.0
 
 - Initial release.
+
+[#9]: https://github.com/godaddy/next-rum/pull/9
