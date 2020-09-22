@@ -1,3 +1,4 @@
+/* eslint-disable max-statements */
 import { shallow, mount } from 'enzyme';
 import { it, describe } from 'mocha';
 import EventEmitter from 'events';
@@ -103,6 +104,14 @@ describe('RUM Component', function () {
     });
   }
 
+  function reportWebVitals() {
+    const loadEventEndMinusNavStart = 9600.97;
+    RUM.webVitals.loadEventEnd = Date.now() + loadEventEndMinusNavStart;
+    RUM.webVitals.renderDuration = 17.36;
+    RUM.webVitals.navigationStart = Date.now() + RUM.webVitals.renderDuration;
+    RUM.webVitals.loadEventStart = Date.now() + RUM.webVitals.renderDuration;
+  }
+
   it('adds eventlisteners to the next internals', function () {
     on();
 
@@ -130,6 +139,7 @@ describe('RUM Component', function () {
     assume(global.next.router.events.listeners('routeChangeComplete')).is.length(0);
 
     const enzyme = mount(<RUM navigated={ navigated } />);
+    // eslint-disable-next-line no-unused-vars
     const instance = enzyme.instance();
 
     assume(global.next.emitter.listeners('before-reactdom-render')).is.length(1);
@@ -224,7 +234,9 @@ describe('RUM Component', function () {
     afterEach(off);
 
     it('calls the callback when the page is navigated', function (next) {
+      reportWebVitals();
       emulate('/callback-test');
+
       events.once('navigated', function (url, payload) {
         assume(url).equals('/callback-test');
         assume(payload).is.a('object');
@@ -236,7 +248,9 @@ describe('RUM Component', function () {
     it('generates timing information', function (next) {
       const start = Date.now();
 
+      reportWebVitals();
       emulate('/timing-data');
+
       events.once('navigated', function (url, payload) {
         const end = Date.now();
 
@@ -276,6 +290,7 @@ describe('RUM Component', function () {
       next();
     });
 
+    reportWebVitals();
     emulate('/render-error', new Error('Shits on fire yo'));
   });
 

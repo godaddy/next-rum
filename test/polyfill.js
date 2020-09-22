@@ -46,6 +46,7 @@ export default function polyfill() {
         emitter.emit('clearResourceTimings');
       },
 
+      // eslint-disable-next-line no-unused-vars
       getEntriesByType: (type) => {
         function item(name, offset = 0) {
           const now = (Date.now() + offset) - global.performance.timeOrigin;
@@ -58,7 +59,7 @@ export default function polyfill() {
             redirectEnd: now,
             startTime: now,
             name
-          }
+          };
         }
 
         return [
@@ -66,7 +67,7 @@ export default function polyfill() {
           item('http://example.com/assets/image.jpg', 10),
           item('http://example.com/foo', -10),
           item('http://example.com/next/page/lolz.js', 0)
-        ]
+        ];
       }
     }
   });

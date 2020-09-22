@@ -1,4 +1,5 @@
 import purrformance, { timeOrigin, entries, find } from './purrformance';
+// eslint-disable-next-line no-unused-vars
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 
@@ -120,7 +121,7 @@ export default class Measure extends Component {
    * Find a stat for a given name.
    *
    * @param {String} name Name of the metrict we want to read.
-   * @returns {Object|Undefined} The value.
+   * @returns {Object|Undefined} The additional timing info.
    * @public
    */
   get(name) {
@@ -132,6 +133,7 @@ export default class Measure extends Component {
    * are asked to delay the gathering. This will be done incase of unloading
    * of the page, so metrics can still be send if needed.
    *
+   * @returns {undefined} Nothing.
    * @private
    */
   flush() {
@@ -253,11 +255,11 @@ export default class Measure extends Component {
 
   /**
    * Grab all ResourceAPI entries and see if we can extract relevant data
-   * from it so make the timing information more accurate.
+   * from it to make the timing information more accurate.
    *
    * @param {Object} range Start and end time in which the requests could start.
    * @param {Object} rum The RUM timing object that we can improve.
-   * @param {Array} resources The items that are loaded during the navigation.
+   * @returns {Array} resources The items that are loaded during the navigation.
    * @public
    */
   resourceTiming(range, rum) {
@@ -292,16 +294,18 @@ export default class Measure extends Component {
   /**
    * Create the payload that is send to the callback.
    *
+   * @returns {undefined} Nothing
    * @private
    */
+  // eslint-disable-next-line complexity
   payload() {
-    const rendered = this.get('domContentLoaded');
-    const start = this.get('navigationStart');
-    const unmount = this.get('domLoading');
-    const end = this.get('loadEventEnd');
-    const rum = {};
+    const unmount = this.get('domLoading'),
+      rendered = Measure.webVitals.loadEventStart,
+      start = Measure.webVitals.navigationStart,
+      end = Measure.webVitals.loadEventEnd,
+      rum = {};
 
-    if (!start || !end || !unmount || !rendered) return this.reset();
+    if (!start || !end || !rendered) return this.reset();
 
     //
     // Start of the route loading.
@@ -316,26 +320,26 @@ export default class Measure extends Component {
       'requestStart',         // So we are going to default all of these
       'responseStart',        // to the start timing for now until we
       'responseEnd'           // made a PR to add events for these.
-    ].forEach(name => (rum[name] = start.now));
+    ].forEach(name => (rum[name] = start));
 
     //
     // Components and data are fetched.
     //
-    rum.domLoading = unmount.now;
+    rum.domLoading = unmount && unmount.now ? unmount.now : null;
 
     [
       'domInteractive',       // Unable to measure, SPA's are always interactive
       'domContentLoaded',     // Once the React app is rendered, it is loaded
       'domComplete',          // and also complete, so use the same timing.
       'loadEventStart'        // loadEventStart should be the same as domComplete
-    ].forEach(name => (rum[name] = rendered.now));
+    ].forEach(name => (rum[name] = rendered));
 
-    rum.loadEventEnd = end.now;
+    rum.loadEventEnd = end;
 
     //
     // Check if we can use the ResourceAPI to improvement some our data.
     //
-    const entries = this.resourceTiming({ start: start.now, end: end.now }, rum);
+    const entries = this.resourceTiming({ start: start, end: end }, rum);
     this.props.navigated(this.router.asPath, rum, entries);
 
     this.reset();
@@ -352,6 +356,19 @@ export default class Measure extends Component {
     return this.props.children || null;
   }
 }
+
+/**
+ * We need to expose these properties to be updated with performance metrics from Next.js built in reportWebVitals
+ * function.
+ *
+ * @type {Object}
+ */
+Measure.webVitals = {
+  navigationStart: null,
+  loadEventStart: null,
+  loadEventEnd: null,
+  renderDuration: null
+};
 
 /**
  * Default props.

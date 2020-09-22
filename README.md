@@ -159,14 +159,19 @@ The following timing information is gathered:
   requestStart: <epoch>,
   responseStart: <epoch>,
   responseEnd: <epoch>,
-  domLoading: <epoch>,        // before-reactdom-render
-  domInteractive: <epoch>,    // after-reactdom-render
+  domLoading: <epoch>,        
+  domInteractive: <epoch>,    // webVitals.loadEventStart
   domContentLoaded: <epoch>,
   domComplete: <epoch>,
-  loadEventStart: <epoch>,    // `routeChangeComplete`
+  loadEventStart: <epoch>,    // webVitals.loadEventStart
   loadEventEnd: <epoch>
 }
 ```
+
+The `navigationStart`, `loadEventStart`, `loadEventEnd`, and `renderDuration` properties are gathered from Next.js built in 
+web vitals metrics.
+
+More details on the Next.js performance metrics can be found [here](https://nextjs.org/docs/advanced-features/measuring-performance), and more details on the gasket-next implimentation can be found [here](https://github.secureserver.net/gasket/gasket/blob/master/packages/gasket-next/src/web-vitals.js).
 
 ## License
 
