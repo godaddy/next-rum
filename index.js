@@ -206,12 +206,6 @@ export default class Measure extends Component {
    */
   start(url) {
     //
-    // Check if we already have data queued, if that is the case we want to
-    // make sure that we flush it, and reset our metrics.
-    //
-    this.flush();
-
-    //
     // Clearning the resourceTimings does a couple of useful things for us:
     //
     // 1. It ensures that we do not overflow our resource buffer. Browsers have
