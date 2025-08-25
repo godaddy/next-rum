@@ -34,7 +34,7 @@
     "prop-types": "x.x.x"
   },
   "scripts": {
-    "test:runner": "mocha --require setup-env --recursive \"test/**/*.*(test|spec).js\"",
+    "test:runner": "mocha --require setup-env --require ./test/setup.js --recursive \"test/**/*.*(test|spec).js\"",
     "test": "nyc --reporter=text --reporter=json-summary npm run test:runner",
     "lint": "eslint index.js test/*.js",
     "build": "babel index.js purrformance.js -d ./lib",

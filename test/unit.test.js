@@ -97,11 +97,16 @@ describe('RUM Component', function () {
   }
 
   function off() {
-    result.unmount();
+    if (result && result.length > 0) {
+      result.unmount();
+    }
 
     Object.keys(timers).forEach((key) => {
       clearTimeout(timers[key]);
     });
+
+    result = null;
+    rum = null;
   }
 
   function reportWebVitals() {
@@ -295,11 +300,13 @@ describe('RUM Component', function () {
   });
 
   it('registers an `beforeunload` listener', function (next) {
+    let capturedFn;
+
     global.addEventListener = function (name, fn) {
       delete global.addEventListener;
 
       assume(name).equals('beforeunload');
-      assume(fn.toString()).equals(rum.flush.toString());
+      capturedFn = fn;
 
       //
       // addEventListener is called during will mount, so we don't want to
@@ -307,6 +314,8 @@ describe('RUM Component', function () {
       // mount process.
       //
       setTimeout(function () {
+        // Now we can safely get the flush function and compare
+        assume(capturedFn.toString()).equals(rum.flush.toString());
         off();
         next();
       }, 0);

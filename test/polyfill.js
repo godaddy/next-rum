@@ -46,6 +46,11 @@ export default function polyfill() {
         emitter.emit('clearResourceTimings');
       },
 
+      mark: () => {},
+      measure: () => {},
+      clearMarks: () => {},
+      clearMeasures: () => {},
+
       // eslint-disable-next-line no-unused-vars
       getEntriesByType: (type) => {
         function item(name, offset = 0) {
