@@ -387,7 +387,7 @@ describe('RUM Component', function () {
       it('handles start with existing timer and timings', function () {
         rum.props = { navigated: sinon.stub(), clearResourceTimings: true };
         // Properly setup router and emitter to avoid componentWillUnmount errors
-        rum.router = { asPath: '/test-path', events: { off: sinon.stub() }};
+        rum.router = { asPath: '/test-path', events: { off: sinon.stub() } };
         rum.emitter = { off: sinon.stub() };
         rum.timer = 1234;
         rum.set('existingTiming', { data: 'test' });
@@ -453,7 +453,7 @@ describe('RUM Component', function () {
 
       it('replaces existing timer when delay is configured', function () {
         rum.props = { navigated: navigatedStub, delay: 1000 };
-        rum.router = { asPath: '/test-path', events: { off: sinon.stub() }};
+        rum.router = { asPath: '/test-path', events: { off: sinon.stub() } };
         rum.emitter = { off: sinon.stub() };
         rum.timer = 1234;
         const existingTimer = rum.timer;
