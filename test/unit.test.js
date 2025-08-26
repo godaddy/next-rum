@@ -328,7 +328,7 @@ describe('RUM Component', function () {
 
   describe('render', function () {
     it('renders no output when used as standalone Component', function () {
-      const result = shallow(
+      result = shallow(
         <div>
           <h1>Hello world</h1>
           <RUM navigated={ navigated } />
@@ -339,7 +339,7 @@ describe('RUM Component', function () {
     });
 
     it('returns children when wrapping a component', function () {
-      const result = shallow(
+      result = shallow(
         <RUM navigated={ navigated }>
           <h1>Hello world</h1>
         </RUM>

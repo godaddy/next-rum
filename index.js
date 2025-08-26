@@ -339,8 +339,8 @@ export default class Measure extends Component {
     //
     // Check if we can use the ResourceAPI to improvement some our data.
     //
-    const entries = this.resourceTiming({ start: start, end: end }, rum);
-    this.props.navigated(this.router.asPath, rum, entries);
+    const timings = this.resourceTiming({ start: start, end: end }, rum);
+    this.props.navigated(this.router.asPath, rum, timings);
 
     this.reset();
   }

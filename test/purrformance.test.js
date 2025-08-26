@@ -44,7 +44,7 @@ describe('purrformance', function () {
     [
       { prefix: 'moz', name: 'mozClearResourceTimings' },
       { prefix: 'ms', name: 'msClearResourceTimings' },
-      { prefix: 'webkit', name: 'webkitClearResourceTimings' },
+      { prefix: 'webkit', name: 'webkitClearResourceTimings' }
     ].forEach(function generate(item) {
       it(`finds the ${item.prefix} prefixed api's`, function () {
         const where = {
