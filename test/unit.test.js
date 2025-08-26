@@ -208,6 +208,116 @@ describe('RUM Component', function () {
         assume(rum.timings).is.a('object');
         assume(rum.timings).is.length(0);
       });
+
+      it('clears any existing timer', function () {
+        rum.timer = setTimeout(() => {}, 1000);
+        const timerId = rum.timer;
+
+        assume(rum.timer).equals(timerId);
+        rum.reset();
+
+        assume(rum.timer).is.a('null');
+      });
+
+      it('handles reset when timer is already null', function () {
+        rum.timer = null;
+        rum.set('test', { data: 'value' });
+
+        rum.reset();
+
+        assume(rum.timer).is.a('null');
+        assume(rum.timings).is.length(0);
+      });
+
+      it('resets timings even when timer exists', function () {
+        rum.timer = setTimeout(() => {}, 1000);
+        rum.set('test1');
+        rum.set('test2', { extra: 'data' });
+
+        assume(Object.keys(rum.timings)).is.length(2);
+        rum.reset();
+
+        assume(rum.timings).is.length(0);
+        assume(rum.timer).is.a('null');
+      });
+    });
+
+    describe('#flush', function () {
+      it('calls reset when no timer exists', function () {
+        let resetCalled = false;
+        const originalReset = rum.reset;
+        rum.reset = function () {
+          resetCalled = true;
+          originalReset.call(this);
+        };
+
+        rum.timer = null;
+        rum.flush();
+
+        assume(resetCalled).is.true();
+        rum.reset = originalReset;
+      });
+
+      it('calls payload when timer exists', function () {
+        let payloadCalled = false;
+        const originalPayload = rum.payload;
+        rum.payload = function () {
+          payloadCalled = true;
+          originalPayload.call(this);
+        };
+
+        rum.timer = setTimeout(() => {}, 1000);
+        rum.flush();
+
+        assume(payloadCalled).is.true();
+        rum.payload = originalPayload;
+      });
+
+      it('does not call payload when timer is null', function () {
+        let payloadCalled = false;
+        const originalPayload = rum.payload;
+        rum.payload = function () {
+          payloadCalled = true;
+          originalPayload.call(this);
+        };
+
+        rum.timer = null;
+        rum.flush();
+
+        assume(payloadCalled).is.false();
+        rum.payload = originalPayload;
+      });
+
+      it('handles flush with existing timings and timer', function () {
+        rum.set('testTiming', { url: '/test' });
+        rum.timer = setTimeout(() => {}, 1000);
+
+        assume(Object.keys(rum.timings)).is.length(1);
+        assume(rum.timer).is.not.null();
+
+        let payloadCalled = false;
+        const originalPayload = rum.payload;
+        rum.payload = function () {
+          payloadCalled = true;
+        };
+
+        rum.flush();
+
+        assume(payloadCalled).is.true();
+        rum.payload = originalPayload;
+      });
+
+      it('handles flush with existing timings but no timer', function () {
+        rum.set('testTiming', { url: '/test' });
+        rum.timer = null;
+
+        assume(Object.keys(rum.timings)).is.length(1);
+
+        rum.flush();
+
+        assume(rum.timings).is.length(0);
+        assume(rum.timer).is.a('null');
+      });
     });
   });
 
