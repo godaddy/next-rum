@@ -1,5 +1,10 @@
 # CHANGELOG
 
+### 1.3.0
+
+- Fix duplicate navigated calls due to timer not being reset correctly. ([#16])
+- Updated dev dependencies and tests.
+
 ### 1.2.0
 
 - Updates to utilize Next.js web vitals properties. ([#9])
@@ -21,3 +26,4 @@
 - Initial release.
 
 [#9]: https://github.com/godaddy/next-rum/pull/9
+[#16]: https://github.com/godaddy/next-rum/pull/16
