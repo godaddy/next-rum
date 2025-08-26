@@ -324,6 +324,181 @@ describe('RUM Component', function () {
         assume(rum.timer).is.a('null');
       });
     });
+
+    describe('#start', function () {
+      let flushSpy, setSpy, originalProps, originalRouter, originalEmitter;
+
+      beforeEach(function () {
+        flushSpy = sinon.spy(rum, 'flush');
+        setSpy = sinon.spy(rum, 'set');
+        // Store original state
+        originalProps = rum.props;
+        originalRouter = rum.router;
+        originalEmitter = rum.emitter;
+        // Set up proper props for the rum instance
+        rum.props = { clearResourceTimings: true };
+      });
+
+      afterEach(function () {
+        flushSpy.restore();
+        setSpy.restore();
+        // Restore original state
+        rum.props = originalProps;
+        rum.router = originalRouter;
+        rum.emitter = originalEmitter;
+      });
+
+      it('calls flush to clear existing data', function () {
+        rum.start('/test-url');
+
+        assume(flushSpy.calledOnce).is.true();
+      });
+
+      it('sets navigationStart timing with URL', function () {
+        rum.start('/test-path');
+
+        assume(setSpy.calledWith('navigationStart', { url: '/test-path' })).is.true();
+      });
+
+      it('calls flush before setting navigationStart', function () {
+        rum.start('/test-url');
+
+        assume(flushSpy.calledBefore(setSpy)).is.true();
+      });
+
+      it('processes clearResourceTimings when prop is true', function () {
+        rum.props = { clearResourceTimings: true };
+
+        rum.start('/test-url');
+
+        assume(flushSpy.calledOnce).is.true();
+        assume(setSpy.calledWith('navigationStart', { url: '/test-url' })).is.true();
+      });
+
+      it('processes normally when clearResourceTimings prop is false', function () {
+        rum.props = { clearResourceTimings: false };
+
+        rum.start('/test-url');
+
+        assume(flushSpy.calledOnce).is.true();
+        assume(setSpy.calledWith('navigationStart', { url: '/test-url' })).is.true();
+      });
+
+      it('handles start with existing timer and timings', function () {
+        rum.props = { navigated: sinon.stub(), clearResourceTimings: true };
+        // Properly setup router and emitter to avoid componentWillUnmount errors
+        rum.router = { asPath: '/test-path', events: { off: sinon.stub() }};
+        rum.emitter = { off: sinon.stub() };
+        rum.timer = 1234;
+        rum.set('existingTiming', { data: 'test' });
+
+        rum.start('/new-url');
+
+        assume(flushSpy.calledOnce).is.true();
+        assume(setSpy.calledWith('navigationStart', { url: '/new-url' })).is.true();
+      });
+    });
+
+    describe('#complete', function () {
+      let setSpy, payloadSpy, clearTimeoutSpy, setTimeoutSpy, navigatedStub;
+      let originalProps, originalRouter;
+
+      beforeEach(function () {
+        setSpy = sinon.spy(rum, 'set');
+        payloadSpy = sinon.spy(rum, 'payload');
+        clearTimeoutSpy = sinon.spy(global, 'clearTimeout');
+        setTimeoutSpy = sinon.spy(global, 'setTimeout');
+        navigatedStub = sinon.stub();
+        // Store original state
+        originalProps = rum.props;
+        originalRouter = rum.router;
+        // Set up proper props and router for the rum instance
+        rum.props = { navigated: navigatedStub, delay: 0 };
+        rum.router = { asPath: '/test-path' };
+      });
+
+      afterEach(function () {
+        setSpy.restore();
+        payloadSpy.restore();
+        clearTimeoutSpy.restore();
+        setTimeoutSpy.restore();
+        // Restore original state
+        rum.props = originalProps;
+        rum.router = originalRouter;
+      });
+
+      it('sets loadEventEnd timing with URL', function () {
+        rum.props = { navigated: navigatedStub, delay: 0 };
+        rum.complete('/completed-url');
+
+        assume(setSpy.calledWith('loadEventEnd', { url: '/completed-url' })).is.true();
+      });
+
+      it('calls payload immediately when no delay is set', function () {
+        rum.props = { navigated: navigatedStub, delay: 0 };
+        rum.complete('/test-url');
+
+        assume(payloadSpy.calledOnce).is.true();
+        assume(setTimeoutSpy.called).is.false();
+      });
+
+      it('sets timer when delay is configured', function () {
+        rum.props = { navigated: navigatedStub, delay: 2000 };
+        rum.complete('/test-url');
+
+        assume(setTimeoutSpy.calledOnce).is.true();
+        assume(setTimeoutSpy.calledWith(rum.payload, 2000)).is.true();
+        assume(payloadSpy.called).is.false();
+      });
+
+      it('replaces existing timer when delay is configured', function () {
+        rum.props = { navigated: navigatedStub, delay: 1000 };
+        rum.router = { asPath: '/test-path', events: { off: sinon.stub() }};
+        rum.emitter = { off: sinon.stub() };
+        rum.timer = 1234;
+        const existingTimer = rum.timer;
+
+        rum.complete('/test-url');
+
+        // Test the essential behavior: timer should be different (replaced)
+        assume(rum.timer).is.not.equal(existingTimer);
+        // Verify payload was not called immediately (because delay > 0)
+        assume(payloadSpy.called).is.false();
+      });
+
+      it('handles complete with delay when no existing timer', function () {
+        rum.props = { navigated: navigatedStub, delay: 1500 };
+        rum.timer = null;
+
+        rum.complete('/test-url');
+
+        assume(clearTimeoutSpy.calledWith(null)).is.true();
+        assume(setTimeoutSpy.calledWith(rum.payload, 1500)).is.true();
+      });
+
+      it('sets loadEventEnd before handling delay logic', function () {
+        rum.props = { navigated: navigatedStub, delay: 1000 };
+        rum.complete('/test-url');
+
+        assume(setSpy.calledBefore(setTimeoutSpy)).is.true();
+      });
+
+      it('handles null delay (falsy value)', function () {
+        rum.props = { navigated: navigatedStub, delay: null };
+        rum.complete('/test-url');
+
+        assume(payloadSpy.calledOnce).is.true();
+        assume(setTimeoutSpy.called).is.false();
+      });
+
+      it('handles zero delay', function () {
+        rum.props = { navigated: navigatedStub, delay: 0 };
+        rum.complete('/test-url');
+
+        assume(payloadSpy.calledOnce).is.true();
+        assume(setTimeoutSpy.called).is.false();
+      });
+    });
   });
 
   describe('render', function () {
