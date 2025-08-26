@@ -6,6 +6,7 @@ import polyfill from './polyfill';
 import RUM from '../index.js';
 import assume from 'assume';
 import React from 'react';
+import sinon from 'sinon';
 
 describe('RUM Component', function () {
   const events = new EventEmitter();
@@ -199,6 +200,16 @@ describe('RUM Component', function () {
     });
 
     describe('#reset', function () {
+      let clearTimeoutSpy;
+
+      beforeEach(function () {
+        clearTimeoutSpy = sinon.spy(global, 'clearTimeout');
+      });
+
+      afterEach(function () {
+        clearTimeoutSpy.restore();
+      });
+
       it('resets the object', function () {
         rum.set('example');
 
@@ -216,6 +227,8 @@ describe('RUM Component', function () {
         assume(rum.timer).equals(timerId);
         rum.reset();
 
+        assume(clearTimeoutSpy.calledOnce).is.true();
+        assume(clearTimeoutSpy.calledWith(timerId)).is.true();
         assume(rum.timer).is.a('null');
       });
 
@@ -225,6 +238,8 @@ describe('RUM Component', function () {
 
         rum.reset();
 
+        assume(clearTimeoutSpy.calledOnce).is.true();
+        assume(clearTimeoutSpy.calledWith(null)).is.true();
         assume(rum.timer).is.a('null');
         assume(rum.timings).is.length(0);
       });
@@ -237,55 +252,48 @@ describe('RUM Component', function () {
         assume(Object.keys(rum.timings)).is.length(2);
         rum.reset();
 
+        assume(clearTimeoutSpy.calledOnce).is.true();
         assume(rum.timings).is.length(0);
         assume(rum.timer).is.a('null');
       });
     });
 
     describe('#flush', function () {
-      it('calls reset when no timer exists', function () {
-        let resetCalled = false;
-        const originalReset = rum.reset;
-        rum.reset = function () {
-          resetCalled = true;
-          originalReset.call(this);
-        };
+      let resetSpy, payloadSpy;
 
+      beforeEach(function () {
+        resetSpy = sinon.spy(rum, 'reset');
+        payloadSpy = sinon.spy(rum, 'payload');
+      });
+
+      afterEach(function () {
+        resetSpy.restore();
+        payloadSpy.restore();
+      });
+
+      it('calls reset when no timer exists', function () {
         rum.timer = null;
         rum.flush();
 
-        assume(resetCalled).is.true();
-        rum.reset = originalReset;
+        assume(resetSpy.calledOnce).is.true();
+        assume(payloadSpy.called).is.false();
       });
 
       it('calls payload when timer exists', function () {
-        let payloadCalled = false;
-        const originalPayload = rum.payload;
-        rum.payload = function () {
-          payloadCalled = true;
-          originalPayload.call(this);
-        };
-
         rum.timer = setTimeout(() => {}, 1000);
         rum.flush();
 
-        assume(payloadCalled).is.true();
-        rum.payload = originalPayload;
+        assume(payloadSpy.calledOnce).is.true();
+        // payload() internally calls reset(), so reset should also be called
+        assume(resetSpy.calledOnce).is.true();
       });
 
       it('does not call payload when timer is null', function () {
-        let payloadCalled = false;
-        const originalPayload = rum.payload;
-        rum.payload = function () {
-          payloadCalled = true;
-          originalPayload.call(this);
-        };
-
         rum.timer = null;
         rum.flush();
 
-        assume(payloadCalled).is.false();
-        rum.payload = originalPayload;
+        assume(payloadSpy.called).is.false();
+        assume(resetSpy.calledOnce).is.true();
       });
 
       it('handles flush with existing timings and timer', function () {
@@ -295,16 +303,11 @@ describe('RUM Component', function () {
         assume(Object.keys(rum.timings)).is.length(1);
         assume(rum.timer).is.not.null();
 
-        let payloadCalled = false;
-        const originalPayload = rum.payload;
-        rum.payload = function () {
-          payloadCalled = true;
-        };
-
         rum.flush();
 
-        assume(payloadCalled).is.true();
-        rum.payload = originalPayload;
+        assume(payloadSpy.calledOnce).is.true();
+        // payload() internally calls reset(), so reset should also be called
+        assume(resetSpy.calledOnce).is.true();
       });
 
       it('handles flush with existing timings but no timer', function () {
@@ -315,6 +318,8 @@ describe('RUM Component', function () {
 
         rum.flush();
 
+        assume(resetSpy.calledOnce).is.true();
+        assume(payloadSpy.called).is.false();
         assume(rum.timings).is.length(0);
         assume(rum.timer).is.a('null');
       });

@@ -5,7 +5,6 @@
   "main": "./lib",
   "browser": "./lib",
   "module": "index.js",
-  "dependencies": {},
   "devDependencies": {
     "assume": "^2.1.0",
     "babel-cli": "^6.26.0",
@@ -27,11 +26,12 @@
     "prop-types": "^15.6.2",
     "react": "^16.4.1",
     "react-dom": "^16.4.1",
-    "setup-env": "^1.1.0"
+    "setup-env": "^1.1.0",
+    "sinon": "^21.0.0"
   },
   "peerDependencies": {
-    "react": "x.x.x",
-    "prop-types": "x.x.x"
+    "prop-types": "x.x.x",
+    "react": "x.x.x"
   },
   "scripts": {
     "test:runner": "mocha --require setup-env --require ./test/setup.js --recursive \"test/**/*.*(test|spec).js\"",
