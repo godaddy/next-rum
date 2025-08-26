@@ -6,6 +6,7 @@ import polyfill from './polyfill';
 import RUM from '../index.js';
 import assume from 'assume';
 import React from 'react';
+import sinon from 'sinon';
 
 describe('RUM Component', function () {
   const events = new EventEmitter();
@@ -97,11 +98,16 @@ describe('RUM Component', function () {
   }
 
   function off() {
-    result.unmount();
+    if (result && result.length > 0) {
+      result.unmount();
+    }
 
     Object.keys(timers).forEach((key) => {
       clearTimeout(timers[key]);
     });
+
+    result = null;
+    rum = null;
   }
 
   function reportWebVitals() {
@@ -194,6 +200,16 @@ describe('RUM Component', function () {
     });
 
     describe('#reset', function () {
+      let clearTimeoutSpy;
+
+      beforeEach(function () {
+        clearTimeoutSpy = sinon.spy(global, 'clearTimeout');
+      });
+
+      afterEach(function () {
+        clearTimeoutSpy.restore();
+      });
+
       it('resets the object', function () {
         rum.set('example');
 
@@ -203,12 +219,291 @@ describe('RUM Component', function () {
         assume(rum.timings).is.a('object');
         assume(rum.timings).is.length(0);
       });
+
+      it('clears any existing timer', function () {
+        rum.timer = setTimeout(() => {}, 1000);
+        const timerId = rum.timer;
+
+        assume(rum.timer).equals(timerId);
+        rum.reset();
+
+        assume(clearTimeoutSpy.calledOnce).is.true();
+        assume(clearTimeoutSpy.calledWith(timerId)).is.true();
+        assume(rum.timer).is.a('null');
+      });
+
+      it('handles reset when timer is already null', function () {
+        rum.timer = null;
+        rum.set('test', { data: 'value' });
+
+        rum.reset();
+
+        assume(clearTimeoutSpy.calledOnce).is.true();
+        assume(clearTimeoutSpy.calledWith(null)).is.true();
+        assume(rum.timer).is.a('null');
+        assume(rum.timings).is.length(0);
+      });
+
+      it('resets timings even when timer exists', function () {
+        rum.timer = setTimeout(() => {}, 1000);
+        rum.set('test1');
+        rum.set('test2', { extra: 'data' });
+
+        assume(Object.keys(rum.timings)).is.length(2);
+        rum.reset();
+
+        assume(clearTimeoutSpy.calledOnce).is.true();
+        assume(rum.timings).is.length(0);
+        assume(rum.timer).is.a('null');
+      });
+    });
+
+    describe('#flush', function () {
+      let resetSpy, payloadSpy;
+
+      beforeEach(function () {
+        resetSpy = sinon.spy(rum, 'reset');
+        payloadSpy = sinon.spy(rum, 'payload');
+      });
+
+      afterEach(function () {
+        resetSpy.restore();
+        payloadSpy.restore();
+      });
+
+      it('calls reset when no timer exists', function () {
+        rum.timer = null;
+        rum.flush();
+
+        assume(resetSpy.calledOnce).is.true();
+        assume(payloadSpy.called).is.false();
+      });
+
+      it('calls payload when timer exists', function () {
+        rum.timer = setTimeout(() => {}, 1000);
+        rum.flush();
+
+        assume(payloadSpy.calledOnce).is.true();
+        // payload() internally calls reset(), so reset should also be called
+        assume(resetSpy.calledOnce).is.true();
+      });
+
+      it('does not call payload when timer is null', function () {
+        rum.timer = null;
+        rum.flush();
+
+        assume(payloadSpy.called).is.false();
+        assume(resetSpy.calledOnce).is.true();
+      });
+
+      it('handles flush with existing timings and timer', function () {
+        rum.set('testTiming', { url: '/test' });
+        rum.timer = setTimeout(() => {}, 1000);
+
+        assume(Object.keys(rum.timings)).is.length(1);
+        assume(rum.timer).is.not.null();
+
+        rum.flush();
+
+        assume(payloadSpy.calledOnce).is.true();
+        // payload() internally calls reset(), so reset should also be called
+        assume(resetSpy.calledOnce).is.true();
+      });
+
+      it('handles flush with existing timings but no timer', function () {
+        rum.set('testTiming', { url: '/test' });
+        rum.timer = null;
+
+        assume(Object.keys(rum.timings)).is.length(1);
+
+        rum.flush();
+
+        assume(resetSpy.calledOnce).is.true();
+        assume(payloadSpy.called).is.false();
+        assume(rum.timings).is.length(0);
+        assume(rum.timer).is.a('null');
+      });
+    });
+
+    describe('#start', function () {
+      let flushSpy, setSpy, originalProps, originalRouter, originalEmitter;
+
+      beforeEach(function () {
+        flushSpy = sinon.spy(rum, 'flush');
+        setSpy = sinon.spy(rum, 'set');
+        // Store original state
+        originalProps = rum.props;
+        originalRouter = rum.router;
+        originalEmitter = rum.emitter;
+        // Set up proper props for the rum instance
+        rum.props = { clearResourceTimings: true };
+      });
+
+      afterEach(function () {
+        flushSpy.restore();
+        setSpy.restore();
+        // Restore original state
+        rum.props = originalProps;
+        rum.router = originalRouter;
+        rum.emitter = originalEmitter;
+      });
+
+      it('calls flush to clear existing data', function () {
+        rum.start('/test-url');
+
+        assume(flushSpy.calledOnce).is.true();
+      });
+
+      it('sets navigationStart timing with URL', function () {
+        rum.start('/test-path');
+
+        assume(setSpy.calledWith('navigationStart', { url: '/test-path' })).is.true();
+      });
+
+      it('calls flush before setting navigationStart', function () {
+        rum.start('/test-url');
+
+        assume(flushSpy.calledBefore(setSpy)).is.true();
+      });
+
+      it('processes clearResourceTimings when prop is true', function () {
+        rum.props = { clearResourceTimings: true };
+
+        rum.start('/test-url');
+
+        assume(flushSpy.calledOnce).is.true();
+        assume(setSpy.calledWith('navigationStart', { url: '/test-url' })).is.true();
+      });
+
+      it('processes normally when clearResourceTimings prop is false', function () {
+        rum.props = { clearResourceTimings: false };
+
+        rum.start('/test-url');
+
+        assume(flushSpy.calledOnce).is.true();
+        assume(setSpy.calledWith('navigationStart', { url: '/test-url' })).is.true();
+      });
+
+      it('handles start with existing timer and timings', function () {
+        rum.props = { navigated: sinon.stub(), clearResourceTimings: true };
+        // Properly setup router and emitter to avoid componentWillUnmount errors
+        rum.router = { asPath: '/test-path', events: { off: sinon.stub() } };
+        rum.emitter = { off: sinon.stub() };
+        rum.timer = 1234;
+        rum.set('existingTiming', { data: 'test' });
+
+        rum.start('/new-url');
+
+        assume(flushSpy.calledOnce).is.true();
+        assume(setSpy.calledWith('navigationStart', { url: '/new-url' })).is.true();
+      });
+    });
+
+    describe('#complete', function () {
+      let setSpy, payloadSpy, clearTimeoutSpy, setTimeoutSpy, navigatedStub;
+      let originalProps, originalRouter;
+
+      beforeEach(function () {
+        setSpy = sinon.spy(rum, 'set');
+        payloadSpy = sinon.spy(rum, 'payload');
+        clearTimeoutSpy = sinon.spy(global, 'clearTimeout');
+        setTimeoutSpy = sinon.spy(global, 'setTimeout');
+        navigatedStub = sinon.stub();
+        // Store original state
+        originalProps = rum.props;
+        originalRouter = rum.router;
+        // Set up proper props and router for the rum instance
+        rum.props = { navigated: navigatedStub, delay: 0 };
+        rum.router = { asPath: '/test-path' };
+      });
+
+      afterEach(function () {
+        setSpy.restore();
+        payloadSpy.restore();
+        clearTimeoutSpy.restore();
+        setTimeoutSpy.restore();
+        // Restore original state
+        rum.props = originalProps;
+        rum.router = originalRouter;
+      });
+
+      it('sets loadEventEnd timing with URL', function () {
+        rum.props = { navigated: navigatedStub, delay: 0 };
+        rum.complete('/completed-url');
+
+        assume(setSpy.calledWith('loadEventEnd', { url: '/completed-url' })).is.true();
+      });
+
+      it('calls payload immediately when no delay is set', function () {
+        rum.props = { navigated: navigatedStub, delay: 0 };
+        rum.complete('/test-url');
+
+        assume(payloadSpy.calledOnce).is.true();
+        assume(setTimeoutSpy.called).is.false();
+      });
+
+      it('sets timer when delay is configured', function () {
+        rum.props = { navigated: navigatedStub, delay: 2000 };
+        rum.complete('/test-url');
+
+        assume(setTimeoutSpy.calledOnce).is.true();
+        assume(setTimeoutSpy.calledWith(rum.payload, 2000)).is.true();
+        assume(payloadSpy.called).is.false();
+      });
+
+      it('replaces existing timer when delay is configured', function () {
+        rum.props = { navigated: navigatedStub, delay: 1000 };
+        rum.router = { asPath: '/test-path', events: { off: sinon.stub() } };
+        rum.emitter = { off: sinon.stub() };
+        rum.timer = 1234;
+        const existingTimer = rum.timer;
+
+        rum.complete('/test-url');
+
+        // Test the essential behavior: timer should be different (replaced)
+        assume(rum.timer).is.not.equal(existingTimer);
+        // Verify payload was not called immediately (because delay > 0)
+        assume(payloadSpy.called).is.false();
+      });
+
+      it('handles complete with delay when no existing timer', function () {
+        rum.props = { navigated: navigatedStub, delay: 1500 };
+        rum.timer = null;
+
+        rum.complete('/test-url');
+
+        assume(clearTimeoutSpy.calledWith(null)).is.true();
+        assume(setTimeoutSpy.calledWith(rum.payload, 1500)).is.true();
+      });
+
+      it('sets loadEventEnd before handling delay logic', function () {
+        rum.props = { navigated: navigatedStub, delay: 1000 };
+        rum.complete('/test-url');
+
+        assume(setSpy.calledBefore(setTimeoutSpy)).is.true();
+      });
+
+      it('handles null delay (falsy value)', function () {
+        rum.props = { navigated: navigatedStub, delay: null };
+        rum.complete('/test-url');
+
+        assume(payloadSpy.calledOnce).is.true();
+        assume(setTimeoutSpy.called).is.false();
+      });
+
+      it('handles zero delay', function () {
+        rum.props = { navigated: navigatedStub, delay: 0 };
+        rum.complete('/test-url');
+
+        assume(payloadSpy.calledOnce).is.true();
+        assume(setTimeoutSpy.called).is.false();
+      });
     });
   });
 
   describe('render', function () {
     it('renders no output when used as standalone Component', function () {
-      const result = shallow(
+      result = shallow(
         <div>
           <h1>Hello world</h1>
           <RUM navigated={ navigated } />
@@ -219,7 +514,7 @@ describe('RUM Component', function () {
     });
 
     it('returns children when wrapping a component', function () {
-      const result = shallow(
+      result = shallow(
         <RUM navigated={ navigated }>
           <h1>Hello world</h1>
         </RUM>
@@ -295,11 +590,13 @@ describe('RUM Component', function () {
   });
 
   it('registers an `beforeunload` listener', function (next) {
+    let capturedFn;
+
     global.addEventListener = function (name, fn) {
       delete global.addEventListener;
 
       assume(name).equals('beforeunload');
-      assume(fn.toString()).equals(rum.flush.toString());
+      capturedFn = fn;
 
       //
       // addEventListener is called during will mount, so we don't want to
@@ -307,6 +604,8 @@ describe('RUM Component', function () {
       // mount process.
       //
       setTimeout(function () {
+        // Now we can safely get the flush function and compare
+        assume(capturedFn.toString()).equals(rum.flush.toString());
         off();
         next();
       }, 0);

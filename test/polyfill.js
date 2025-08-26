@@ -46,18 +46,23 @@ export default function polyfill() {
         emitter.emit('clearResourceTimings');
       },
 
+      mark: () => {},
+      measure: () => {},
+      clearMarks: () => {},
+      clearMeasures: () => {},
+
       // eslint-disable-next-line no-unused-vars
       getEntriesByType: (type) => {
         function item(name, offset = 0) {
-          const now = (Date.now() + offset) - global.performance.timeOrigin;
+          const time = (Date.now() + offset) - global.performance.timeOrigin;
 
           return {
-            fetchStart: now,
-            responseStart: now + 2,
-            responseEnd: now + 10,
-            redirectStart: now,
-            redirectEnd: now,
-            startTime: now,
+            fetchStart: time,
+            responseStart: time + 2,
+            responseEnd: time + 10,
+            redirectStart: time,
+            redirectEnd: time,
+            startTime: time,
             name
           };
         }

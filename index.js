@@ -149,6 +149,7 @@ export default class Measure extends Component {
    */
   reset() {
     clearTimeout(this.timer);
+    this.timer = null;
     this.timings = {};
   }
 
@@ -211,7 +212,6 @@ export default class Measure extends Component {
     //
     this.flush();
 
-    //
     // Clearning the resourceTimings does a couple of useful things for us:
     //
     // 1. It ensures that we do not overflow our resource buffer. Browsers have
@@ -339,8 +339,8 @@ export default class Measure extends Component {
     //
     // Check if we can use the ResourceAPI to improvement some our data.
     //
-    const entries = this.resourceTiming({ start: start, end: end }, rum);
-    this.props.navigated(this.router.asPath, rum, entries);
+    const timings = this.resourceTiming({ start: start, end: end }, rum);
+    this.props.navigated(this.router.asPath, rum, timings);
 
     this.reset();
   }
